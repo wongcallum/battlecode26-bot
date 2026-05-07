@@ -198,3 +198,9 @@ gradle-app.setting
 .project
 # JDT-specific (Eclipse Java Development Tools)
 .classpath
+
+###### NIX/DIRENV ######
+
+.envrc
+.direnv/
+result/
