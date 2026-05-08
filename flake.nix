@@ -14,14 +14,16 @@
         { pkgs, ... }:
         let
           jdk = pkgs.openjdk21_headless;
+          pythonPackages = pkgs.python312Packages;
         in
         {
           devShells.default = pkgs.mkShell {
-            packages = with pkgs; [
+            venvDir = "./.venv";
+            nativeBuildInputs = with pkgs; [
               # languages
               jdk
-              python3
-              uv
+              pythonPackages.python
+              pythonPackages.venvShellHook
 
               # LSP
               (jdt-language-server.override {
