@@ -66,7 +66,9 @@ ext.versions = [
   battlecodeClient: new File(projectDir, "client_version.txt").text.trim()
 ]
 
-ext.python = System.properties['os.name'].toLowerCase().contains('windows') ? 'python' : 'python3'
+def isWindows = System.properties['os.name'].toLowerCase().contains('windows')
+def venvPython = new File(projectDir, isWindows ? '.venv/Scripts/python.exe' : '.venv/bin/python')
+ext.python = venvPython.exists() ? venvPython.absolutePath : (isWindows ? 'python' : 'python3')
 ext.pythonScript = new File(projectDir, "run.py")
 ext.botDirectory = new File(projectDir, "src")
 
@@ -331,23 +333,20 @@ task runJavaLocal(type: JavaExec) {
 
 task runJava(dependsOn: runJavaLocal) {}
 
+ext.pythonPlayerShellCommand = {
+  def a = project.findProperty('languageA') == 'python' ? project.property('teamA') : '/'
+  def b = project.findProperty('languageB') == 'python' ? project.property('teamB') : '/'
+  def dir = botDirectory.absolutePath
+  return "${python} -m battlecode26 --teamA '${a}' --teamB '${b}' --dirA '${dir}' --dirB '${dir}' > /dev/null 2>&1 &"
+}
+
 task runPyLocal(type: Exec, dependsOn: installPyLocal) {
-  commandLine python, '-m', 'battlecode26',
-    '--teamA', project.findProperty('languageA') == 'python' ? project.property('teamA') : '/',
-    '--teamB', project.findProperty('languageB') == 'python' ? project.property('teamB') : '/',
-    '--dirA', botDirectory.absolutePath,
-    '--dirB', botDirectory.absolutePath,
-    '--new-process'
+  commandLine 'bash', '-c', pythonPlayerShellCommand()
 }
 
 task runPy(type: Exec) {
   mustRunAfter downloadPyPackage
-  commandLine python, '-m', 'battlecode26',
-    '--teamA', project.findProperty('languageA') == 'python' ? project.property('teamA') : '/',
-    '--teamB', project.findProperty('languageB') == 'python' ? project.property('teamB') : '/',
-    '--dirA', botDirectory.absolutePath,
-    '--dirB', botDirectory.absolutePath,
-    '--new-process'
+  commandLine 'bash', '-c', pythonPlayerShellCommand()
 }
 
 task runLocal {
