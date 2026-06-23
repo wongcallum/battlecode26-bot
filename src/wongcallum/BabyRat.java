@@ -27,6 +27,8 @@ public final class BabyRat {
     private static final int LOITER_LIMIT = 20;     // give up a dry mine after this
     private static final int CAT_FLEE_DSQ = 18;     // run once a cat is this close (pounce is 13)
     private static final int DEFEND_DSQ = 36;       // defend the king from enemies this close to it
+    private static final int SECOND_KING_BEFORE_ROUND = 1200; // kings made later get culled (cutoff rule)
+    private static final int SECOND_KING_MIN_CHEESE = 1500;   // only hedge with a clear surplus
 
     static void act(RobotController rc) throws GameActionException {
         MapLocation cur = rc.getLocation();
@@ -52,6 +54,15 @@ public final class BabyRat {
             state = "FLEE_CAT";
             fleeCats(rc, rc.senseNearbyRobots());
             indicate(rc, raw);
+            return;
+        }
+
+        // spawn a backup king when the economy can sustain it
+        // only fires when foragers are bunched together
+        if (rc.getRoundNum() < SECOND_KING_BEFORE_ROUND
+                && rc.getAllCheese() >= SECOND_KING_MIN_CHEESE
+                && rc.canBecomeRatKing()) {
+            rc.becomeRatKing();
             return;
         }
 
