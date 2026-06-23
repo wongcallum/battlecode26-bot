@@ -20,7 +20,7 @@ public final class RatKing {
     private static final int RATS_MIN = 4;
     private static final int RATS_MAX = 14;
     private static final int RATS_PER_MINE = 2;
-    private static final int CHEESE_BUFFER = 400;
+    private static final int CHEESE_BUFFER = 800;
     private static final int SPAWN_INTERVAL = 8;
     private static final int CAT_TRAP_RANGE_DSQ = 16; // only trap a cat closing on us
 
