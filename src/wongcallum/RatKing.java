@@ -36,8 +36,10 @@ public final class RatKing {
         Comms.reportKingState(rc);
 
         // The king has one action per turn; spend it on defence before growth.
-        RobotInfo enemy = Utils.nearestEnemy(rc);
-        RobotInfo cat = Utils.nearestCat(rc);
+        // Sense once and derive both threats from it (one native call, not two).
+        RobotInfo[] robots = rc.senseNearbyRobots();
+        RobotInfo enemy = Utils.nearestEnemy(robots, rc.getLocation(), rc.getTeam().opponent());
+        RobotInfo cat = Utils.nearestCat(robots, rc.getLocation());
 
         if (enemy != null && rc.canAttack(enemy.getLocation())) {
             // 1) bite the nearest enemy in reach (king reach is radius^2 8)
