@@ -1,5 +1,6 @@
 package wongcallum;
 
+import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
@@ -23,6 +24,8 @@ public final class BabyRat {
     private static final int STUCK_LIMIT = 12;      // abandon an unreachable target
     private static final int MINE_LOITER_DSQ = 4;   // "at the mine" if within this
     private static final int LOITER_LIMIT = 20;     // give up a dry mine after this
+    private static final int CAT_FLEE_DSQ = 18;     // run once a cat is this close (pounce is 13)
+    private static final int DEFEND_DSQ = 36;       // defend the king from enemies this close to it
 
     static void act(RobotController rc) throws GameActionException {
         MapLocation cur = rc.getLocation();
@@ -42,6 +45,24 @@ public final class BabyRat {
         if (mineSeen != null) rememberedMine = mineSeen;
 
         int raw = rc.getRawCheese();
+
+        RobotInfo cat = Utils.nearestCat(rc);
+        if (cat != null && cur.isWithinDistanceSquared(cat.getLocation(), CAT_FLEE_DSQ)) {
+            state = "FLEE_CAT";
+            fleeFrom(rc, cat.getLocation());
+            indicate(rc, raw);
+            return;
+        }
+
+        RobotInfo enemy = Utils.nearestEnemy(rc);
+        if (enemy != null && homeKing != null
+                && enemy.getLocation().isWithinDistanceSquared(homeKing, DEFEND_DSQ)) {
+            state = "DEFEND";
+            if (rc.canAttack(enemy.getLocation())) rc.attack(enemy.getLocation());
+            else Pathfinder.moveTo(rc, enemy.getLocation());
+            indicate(rc, raw);
+            return;
+        }
 
         if (raw >= RETURN_THRESHOLD && homeKing != null) {
             state = "RETURN";
@@ -85,6 +106,21 @@ public final class BabyRat {
         }
         Pathfinder.moveTo(rc, exploreTarget);
         indicate(rc, raw);
+    }
+
+    // try to step away from a threat
+    private static void fleeFrom(RobotController rc, MapLocation threat) throws GameActionException {
+        if (!rc.isMovementReady()) return;
+        Direction away = threat.directionTo(rc.getLocation());
+        if (away == Direction.CENTER) away = Direction.NORTH;
+        Direction[] tries = {away, away.rotateLeft(), away.rotateRight(),
+                away.rotateLeft().rotateLeft(), away.rotateRight().rotateRight()};
+        for (Direction d : tries) {
+            if (rc.canMove(d)) {
+                rc.move(d);
+                return;
+            }
+        }
     }
 
     private static boolean transferAllCheese(RobotController rc, int amount) throws GameActionException {
