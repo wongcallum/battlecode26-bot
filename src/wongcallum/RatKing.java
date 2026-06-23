@@ -4,6 +4,8 @@ import battlecode.common.Direction;
 import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
+import battlecode.common.RobotInfo;
+import battlecode.common.TrapType;
 
 // defensive behaviour, maintain cheese, spawn baby rats, defend
 public final class RatKing {
@@ -13,6 +15,7 @@ public final class RatKing {
     private static final int TARGET_RATS = 12;
     private static final int CHEESE_BUFFER = 400;
     private static final int SPAWN_INTERVAL = 8;
+    private static final int CAT_TRAP_RANGE_DSQ = 16; // only trap a cat closing on us
 
     static int lastSpawnRound = -SPAWN_INTERVAL;
     static int spawnedCount = 0;                     // persistent total spawned
@@ -25,12 +28,24 @@ public final class RatKing {
         // Publish position + sensed mines so rats can navigate from anywhere.
         Comms.reportKingState(rc);
 
-        // on big maps, if we only count the visible maps then the king will overspawn
-        // the rate limit and buffer make sure we dont spawn all at once
-        if (spawnedCount < TARGET_RATS
+        // The king has one action per turn; spend it on defence before growth.
+        RobotInfo enemy = Utils.nearestEnemy(rc);
+        RobotInfo cat = Utils.nearestCat(rc);
+
+        if (enemy != null && rc.canAttack(enemy.getLocation())) {
+            // 1) bite the nearest enemy in reach (king reach is radius^2 8)
+            rc.attack(enemy.getLocation());
+        } else if (cat != null
+                && rc.getLocation().isWithinDistanceSquared(cat.getLocation(), CAT_TRAP_RANGE_DSQ)
+                && rc.getNumberCatTraps() < TrapType.CAT_TRAP.maxCount
+                && cheese >= CHEESE_BUFFER + TrapType.CAT_TRAP.buildCost
+                && placeCatTrapToward(rc, cat.getLocation())) {
+            // 2) stun an approaching cat with a doorstep trap (placed above)
+        } else if (spawnedCount < TARGET_RATS
                 && round - lastSpawnRound >= SPAWN_INTERVAL
                 && cheese >= rc.getCurrentRatCost() + CHEESE_BUFFER) {
-            // King is 3x3
+            // grow: count on a persistent total (visible rats undercount foragers
+            // on open maps, which would let the king spawn its whole pool away)
             for (Direction d : Utils.directions) {
                 MapLocation loc = rc.getLocation().translate(2 * d.getDeltaX(), 2 * d.getDeltaY());
                 if (rc.canBuildRat(loc)) {
@@ -41,7 +56,24 @@ public final class RatKing {
                 }
             }
         }
+    }
 
-        // TODO(next): anti-rush defence, global-array SOS, defensive micro.
+    /** Place a cat trap on the king's perimeter, preferring the cat's side. */
+    private static boolean placeCatTrapToward(RobotController rc, MapLocation cat) throws GameActionException {
+        MapLocation me = rc.getLocation();
+        Direction toCat = me.directionTo(cat);
+        MapLocation pref = me.add(toCat).add(toCat); // two steps toward the cat
+        if (rc.canPlaceCatTrap(pref)) {
+            rc.placeCatTrap(pref);
+            return true;
+        }
+        for (Direction d : Utils.directions) {
+            MapLocation loc = me.translate(2 * d.getDeltaX(), 2 * d.getDeltaY());
+            if (rc.canPlaceCatTrap(loc)) {
+                rc.placeCatTrap(loc);
+                return true;
+            }
+        }
+        return false;
     }
 }

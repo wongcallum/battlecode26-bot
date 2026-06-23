@@ -72,4 +72,29 @@ public class Utils {
         }
         return n;
     }
+
+    /** Nearest visible cat (4000 hp, unkillable — to be avoided/trapped), or null. */
+    static RobotInfo nearestCat(RobotController rc) {
+        RobotInfo best = null;
+        int bestDist = Integer.MAX_VALUE;
+        MapLocation me = rc.getLocation();
+        for (RobotInfo r : rc.senseNearbyRobots()) {
+            if (r.getType() != UnitType.CAT) continue;
+            int d = me.distanceSquaredTo(r.getLocation());
+            if (d < bestDist) { bestDist = d; best = r; }
+        }
+        return best;
+    }
+
+    /** Nearest visible enemy rat/king (killable threat to defend against), or null. */
+    static RobotInfo nearestEnemy(RobotController rc) throws GameActionException {
+        RobotInfo best = null;
+        int bestDist = Integer.MAX_VALUE;
+        MapLocation me = rc.getLocation();
+        for (RobotInfo r : rc.senseNearbyRobots(-1, rc.getTeam().opponent())) {
+            int d = me.distanceSquaredTo(r.getLocation());
+            if (d < bestDist) { bestDist = d; best = r; }
+        }
+        return best;
+    }
 }
