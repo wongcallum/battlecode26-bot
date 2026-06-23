@@ -7,27 +7,36 @@ import battlecode.common.RobotController;
 
 // defensive behaviour, maintain cheese, spawn baby rats, defend
 public final class RatKing {
-    private RatKing() {}
+    private RatKing() {
+    }
 
-    static int spawned = 0;
+    private static final int TARGET_RATS = 10;
+    private static final int CHEESE_BUFFER = 400;
+    private static final int SPAWN_INTERVAL = 8;
 
-    private static final int SOFT_CAP = 8; // placeholder
-    private static final int CHEESE_RESERVE = 200;
+    static int lastSpawnRound = -SPAWN_INTERVAL;
 
     static void act(RobotController rc) throws GameActionException {
-        rc.setIndicatorString("RAT_KING | hp=" + rc.getHealth() + " cheese=" + rc.getAllCheese() + " rats=" + spawned);
+        int cheese = rc.getAllCheese();
+        int round = rc.getRoundNum();
+        rc.setIndicatorString("RAT_KING | hp=" + rc.getHealth() + " cheese=" + cheese);
 
-        if (spawned < SOFT_CAP && rc.getAllCheese() >= rc.getCurrentRatCost() + CHEESE_RESERVE) {
+        // try to sustainably spawn by having a rate limit and a minimum buffer
+        int liveRats = Utils.visibleAlliedRats(rc);
+        if (round - lastSpawnRound >= SPAWN_INTERVAL
+                && liveRats < TARGET_RATS
+                && cheese >= rc.getCurrentRatCost() + CHEESE_BUFFER) {
+            // King is 3x3
             for (Direction d : Utils.directions) {
                 MapLocation loc = rc.getLocation().translate(2 * d.getDeltaX(), 2 * d.getDeltaY());
                 if (rc.canBuildRat(loc)) {
                     rc.buildRat(loc);
-                    spawned += 1;
+                    lastSpawnRound = round;
                     break;
                 }
             }
         }
 
-        // TODO: avoid starvation, sustainable spawning, anti-rush defence, shared state.
+        // TODO(next): anti-rush defence, global-array SOS, defensive micro.
     }
 }
