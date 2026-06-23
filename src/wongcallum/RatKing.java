@@ -31,9 +31,10 @@ public final class RatKing {
         // Publish position + sensed mines so rats can navigate from anywhere.
         Comms.reportKingState(rc);
 
-        // The king has one action per turn; spend it on defence before growth.
-        RobotInfo enemy = Utils.nearestEnemy(rc);
-        RobotInfo cat = Utils.nearestCat(rc);
+        // sense once and reuse
+        RobotInfo[] robots = rc.senseNearbyRobots();
+        RobotInfo enemy = Utils.nearestEnemy(robots, rc.getLocation(), rc.getTeam().opponent());
+        RobotInfo cat = Utils.nearestCat(robots, rc.getLocation());
 
         if (enemy != null && rc.canAttack(enemy.getLocation())) {
             rc.attack(enemy.getLocation());

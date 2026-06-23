@@ -2,9 +2,11 @@ package wongcallum;
 
 import battlecode.common.Direction;
 import battlecode.common.GameActionException;
+import battlecode.common.MapInfo;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
+import battlecode.common.Team;
 import battlecode.common.UnitType;
 
 // role: collect cheese, explore, defend, fight defensively
@@ -40,19 +42,24 @@ public final class BabyRat {
         }
         lastLocation = cur;
 
-        RobotInfo king = Utils.nearestAlliedKing(rc);
+        // only sense once per turn to save bytecode
+        RobotInfo[] robots = rc.senseNearbyRobots();
+        MapInfo[] mapInfos = rc.senseNearbyMapInfos();
+        Team team = rc.getTeam();
+
+        RobotInfo king = Utils.nearestAlliedKing(robots, cur, team);
         if (king != null) homeKing = king.getLocation();
         else if (homeKing == null) homeKing = Comms.readKingLocation(rc);
 
-        MapLocation mineSeen = Utils.nearestMine(rc);
+        MapLocation mineSeen = Utils.nearestMine(mapInfos, cur);
         if (mineSeen != null) rememberedMine = mineSeen;
 
         int raw = rc.getRawCheese();
 
-        RobotInfo cat = Utils.nearestCat(rc);
+        RobotInfo cat = Utils.nearestCat(robots, cur);
         if (cat != null && cur.isWithinDistanceSquared(cat.getLocation(), CAT_FLEE_DSQ)) {
             state = "FLEE_CAT";
-            fleeCats(rc, rc.senseNearbyRobots());
+            fleeCats(rc, robots);
             indicate(rc, raw);
             return;
         }
@@ -66,12 +73,12 @@ public final class BabyRat {
             return;
         }
 
-        RobotInfo enemy = Utils.nearestEnemy(rc);
+        RobotInfo enemy = Utils.nearestEnemy(robots, cur, team.opponent());
         if (enemy != null && homeKing != null
                 && enemy.getLocation().isWithinDistanceSquared(homeKing, DEFEND_DSQ)) {
             state = "DEFEND";
             // if nothing worth doing yet, move towards the threat
-            if (!Micro.fight(rc, rc.senseNearbyRobots(), homeKing)) {
+            if (!Micro.fight(rc, robots, homeKing)) {
                 Pathfinder.moveTo(rc, enemy.getLocation());
             }
             indicate(rc, raw);
@@ -85,7 +92,7 @@ public final class BabyRat {
             return;
         }
 
-        MapLocation cheese = Utils.nearestCheese(rc);
+        MapLocation cheese = Utils.nearestCheese(mapInfos, cur);
         if (cheese != null) {
             state = "COLLECT";
             if (rc.canPickUpCheese(cheese)) rc.pickUpCheese(cheese);
