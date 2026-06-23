@@ -55,13 +55,16 @@ public final class BabyRat {
             return;
         }
 
-        // DEFEND: an enemy threatening our king — rally to it and bite.
+        // DEFEND: an enemy threatening our king — rally to it and fight defensively.
         RobotInfo enemy = Utils.nearestEnemy(rc);
         if (enemy != null && homeKing != null
                 && enemy.getLocation().isWithinDistanceSquared(homeKing, DEFEND_DSQ)) {
             state = "DEFEND";
-            if (rc.canAttack(enemy.getLocation())) rc.attack(enemy.getLocation());
-            else Pathfinder.moveTo(rc, enemy.getLocation());
+            // Micro picks a favourable bite or a retreat toward the king; if it
+            // finds nothing worth doing yet, close the gap to the threat.
+            if (!Micro.fight(rc, rc.senseNearbyRobots(), homeKing)) {
+                Pathfinder.moveTo(rc, enemy.getLocation());
+            }
             indicate(rc, raw);
             return;
         }
