@@ -31,6 +31,9 @@ public final class BabyRat {
     private static final int DEFEND_DSQ = 36;       // defend the king from enemies this close to it
     private static final int SECOND_KING_BEFORE_ROUND = 1200; // kings made later get culled (cutoff rule)
     private static final int SECOND_KING_MIN_CHEESE = 1500;   // only hedge with a clear surplus
+    private static final int RAT_TRAP_COST = 20;              // TrapType.RAT_TRAP.buildCost
+    private static final int MAX_RAT_TRAPS = 25;              // TrapType.RAT_TRAP.maxCount (team-wide)
+    private static final int WALL_CHEESE_FLOOR = 100;         // rats keep a bigger reserve than the king
 
     static void act(RobotController rc) throws GameActionException {
         MapLocation cur = rc.getLocation();
@@ -77,9 +80,15 @@ public final class BabyRat {
         if (enemy != null && homeKing != null
                 && enemy.getLocation().isWithinDistanceSquared(homeKing, DEFEND_DSQ)) {
             state = "DEFEND";
-            // if nothing worth doing yet, move towards the threat
-            if (!Micro.fight(rc, robots, homeKing)) {
-                Pathfinder.moveTo(rc, enemy.getLocation());
+
+            // try to create a defensive line, and then defensive micro
+            // doesn't happen against a passive opponent.
+            boolean war = !rc.isCooperation();
+            if (!(war && layKingWallTrap(rc, cur))) {
+                // if nothing worth doing yet, move towards the threat
+                if (!Micro.fight(rc, robots, homeKing)) {
+                    Pathfinder.moveTo(rc, enemy.getLocation());
+                }
             }
             indicate(rc, raw);
             return;
@@ -152,6 +161,31 @@ public final class BabyRat {
         if (bestDir != null) rc.move(bestDir);
     }
 
+    // help wall the king with rat traps on perimeter tiles
+    private static boolean layKingWallTrap(RobotController rc, MapLocation cur) throws GameActionException {
+        if (homeKing == null) return false;
+        if (rc.getNumberRatTraps() >= MAX_RAT_TRAPS) return false;
+        if (rc.getAllCheese() < RAT_TRAP_COST + WALL_CHEESE_FLOOR) return false;
+        MapLocation best = null;
+        int bestDsq = Integer.MAX_VALUE;
+        for (int dx = -2; dx <= 2; dx++) {
+            for (int dy = -2; dy <= 2; dy++) {
+                if (Math.max(Math.abs(dx), Math.abs(dy)) != 2) continue; // ring tiles only
+                MapLocation loc = homeKing.translate(dx, dy);
+                int d = cur.distanceSquaredTo(loc);
+                if (d > 2) continue;                 // must be within this rat's build range
+                if (!rc.canPlaceRatTrap(loc)) continue;
+                if (d < bestDsq) {
+                    bestDsq = d;
+                    best = loc;
+                }
+            }
+        }
+        if (best == null) return false;
+        rc.placeRatTrap(best);
+        return true;
+    }
+
     private static boolean transferAllCheese(RobotController rc, int amount) throws GameActionException {
         if (homeKing == null || amount <= 0) return false;
         for (int dx = -1; dx <= 1; dx++) {
@@ -168,6 +202,5 @@ public final class BabyRat {
 
     private static void indicate(RobotController rc, int raw) {
         rc.setIndicatorString("BABY_RAT | " + state + " | raw=" + raw + " | king=" + homeKing);
-        // TODO: sense cats/king-threat and branch into DEFEND/FLEE_CAT.
     }
 }
