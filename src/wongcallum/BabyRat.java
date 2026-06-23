@@ -5,6 +5,7 @@ import battlecode.common.GameActionException;
 import battlecode.common.MapLocation;
 import battlecode.common.RobotController;
 import battlecode.common.RobotInfo;
+import battlecode.common.UnitType;
 
 // role: collect cheese, explore, defend, fight defensively
 // state machine states: EXPLORE / COLLECT / RETURN / DEFEND / FLEE_CAT
@@ -49,7 +50,7 @@ public final class BabyRat {
         RobotInfo cat = Utils.nearestCat(rc);
         if (cat != null && cur.isWithinDistanceSquared(cat.getLocation(), CAT_FLEE_DSQ)) {
             state = "FLEE_CAT";
-            fleeFrom(rc, cat.getLocation());
+            fleeCats(rc, rc.senseNearbyRobots());
             indicate(rc, raw);
             return;
         }
@@ -110,19 +111,27 @@ public final class BabyRat {
         indicate(rc, raw);
     }
 
-    // try to step away from a threat
-    private static void fleeFrom(RobotController rc, MapLocation threat) throws GameActionException {
+    // maximise the minimum distance to ANY cat, scanning all legal moves
+    private static void fleeCats(RobotController rc, RobotInfo[] nearby) throws GameActionException {
         if (!rc.isMovementReady()) return;
-        Direction away = threat.directionTo(rc.getLocation());
-        if (away == Direction.CENTER) away = Direction.NORTH;
-        Direction[] tries = {away, away.rotateLeft(), away.rotateRight(),
-                away.rotateLeft().rotateLeft(), away.rotateRight().rotateRight()};
-        for (Direction d : tries) {
-            if (rc.canMove(d)) {
-                rc.move(d);
-                return;
+        MapLocation me = rc.getLocation();
+        int bestScore = -1;
+        Direction bestDir = null;
+        for (Direction d : Utils.directions) {
+            if (!rc.canMove(d)) continue;
+            MapLocation to = me.add(d);
+            int minDist = Integer.MAX_VALUE;
+            for (RobotInfo r : nearby) {
+                if (r.getType() != UnitType.CAT) continue;
+                int dist = to.distanceSquaredTo(r.getLocation());
+                if (dist < minDist) minDist = dist;
+            }
+            if (minDist > bestScore) {
+                bestScore = minDist;
+                bestDir = d;
             }
         }
+        if (bestDir != null) rc.move(bestDir);
     }
 
     private static boolean transferAllCheese(RobotController rc, int amount) throws GameActionException {
