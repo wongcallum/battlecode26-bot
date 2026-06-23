@@ -12,7 +12,14 @@ public final class RatKing {
     private RatKing() {
     }
 
-    private static final int TARGET_RATS = 12;
+    // Work force is scaled to income, not fixed: baby rats cost cheese to spawn but
+    // nothing to keep, so on cheese-poor maps every extra rat just shortens the
+    // king's life (it brings no income the few mines don't already cover), while on
+    // rich maps more foragers pay for themselves. Target ~RATS_PER_MINE per mine the
+    // king can see, within [RATS_MIN, RATS_MAX].
+    private static final int RATS_MIN = 4;
+    private static final int RATS_MAX = 14;
+    private static final int RATS_PER_MINE = 2;
     private static final int CHEESE_BUFFER = 400;
     private static final int SPAWN_INTERVAL = 8;
     private static final int CAT_TRAP_RANGE_DSQ = 16; // only trap a cat closing on us
@@ -41,11 +48,11 @@ public final class RatKing {
                 && cheese >= CHEESE_BUFFER + TrapType.CAT_TRAP.buildCost
                 && placeCatTrapToward(rc, cat.getLocation())) {
             // 2) stun an approaching cat with a doorstep trap (placed above)
-        } else if (spawnedCount < TARGET_RATS
+        } else if (spawnedCount < Math.min(RATS_MAX, RATS_MIN + RATS_PER_MINE * Comms.knownMines)
                 && round - lastSpawnRound >= SPAWN_INTERVAL
                 && cheese >= rc.getCurrentRatCost() + CHEESE_BUFFER) {
-            // grow: count on a persistent total (visible rats undercount foragers
-            // on open maps, which would let the king spawn its whole pool away)
+            // grow: scale to mines the king can see (persistent count; visible rats
+            // undercount foragers on open maps and would over-spawn the whole pool)
             for (Direction d : Utils.directions) {
                 MapLocation loc = rc.getLocation().translate(2 * d.getDeltaX(), 2 * d.getDeltaY());
                 if (rc.canBuildRat(loc)) {
