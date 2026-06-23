@@ -58,8 +58,10 @@ public final class BabyRat {
         if (enemy != null && homeKing != null
                 && enemy.getLocation().isWithinDistanceSquared(homeKing, DEFEND_DSQ)) {
             state = "DEFEND";
-            if (rc.canAttack(enemy.getLocation())) rc.attack(enemy.getLocation());
-            else Pathfinder.moveTo(rc, enemy.getLocation());
+            // if nothing worth doing yet, move towards the threat
+            if (!Micro.fight(rc, rc.senseNearbyRobots(), homeKing)) {
+                Pathfinder.moveTo(rc, enemy.getLocation());
+            }
             indicate(rc, raw);
             return;
         }
