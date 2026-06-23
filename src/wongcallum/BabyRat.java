@@ -36,6 +36,8 @@ public final class BabyRat {
 
         RobotInfo king = Utils.nearestAlliedKing(rc);
         if (king != null) homeKing = king.getLocation();
+        else if (homeKing == null) homeKing = Comms.readKingLocation(rc);
+
         MapLocation mineSeen = Utils.nearestMine(rc);
         if (mineSeen != null) rememberedMine = mineSeen;
 
@@ -72,9 +74,13 @@ public final class BabyRat {
         }
 
         state = "EXPLORE";
+        MapLocation commsMine = Comms.readNearestKnownMine(rc, cur); // a mine a king has seen
         boolean reached = exploreTarget != null && cur.distanceSquaredTo(exploreTarget) <= REACHED_DIST_SQ;
-        if (exploreTarget == null || reached || stuckTurns >= STUCK_LIMIT) {
-            exploreTarget = Utils.randomLocation(rc);
+        if (exploreTarget == null || reached) {
+            exploreTarget = (commsMine != null) ? commsMine : Utils.randomLocation(rc);
+            stuckTurns = 0;
+        } else if (stuckTurns >= STUCK_LIMIT) {
+            exploreTarget = Utils.randomLocation(rc); // break out of an unreachable target
             stuckTurns = 0;
         }
         Pathfinder.moveTo(rc, exploreTarget);

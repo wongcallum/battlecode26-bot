@@ -22,6 +22,9 @@ public final class RatKing {
         int round = rc.getRoundNum();
         rc.setIndicatorString("RAT_KING | hp=" + rc.getHealth() + " cheese=" + cheese + " spawned=" + spawnedCount);
 
+        // Publish position + sensed mines so rats can navigate from anywhere.
+        Comms.reportKingState(rc);
+
         // on big maps, if we only count the visible maps then the king will overspawn
         // the rate limit and buffer make sure we dont spawn all at once
         if (spawnedCount < TARGET_RATS
