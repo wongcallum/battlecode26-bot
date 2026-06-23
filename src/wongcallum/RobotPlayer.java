@@ -11,16 +11,6 @@ import java.util.Random;
 public class RobotPlayer {
     static int turnCount = 0;
     static final Random rng = new Random(6147);
-    static final Direction[] directions = {
-        Direction.NORTH,
-        Direction.NORTHEAST,
-        Direction.EAST,
-        Direction.SOUTHEAST,
-        Direction.SOUTH,
-        Direction.SOUTHWEST,
-        Direction.WEST,
-        Direction.NORTHWEST,
-    };
 
     public static void run(RobotController rc) {
         System.out.println("I don't want a lot for Christmas");
