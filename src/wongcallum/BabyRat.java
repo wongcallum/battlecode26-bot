@@ -87,17 +87,29 @@ public final class BabyRat {
         if (enemy != null && homeKing != null
                 && enemy.getLocation().isWithinDistanceSquared(homeKing, DEFEND_DSQ)) {
             state = "DEFEND";
-            // At war the king alone lays only one trap/round — too slow against a
-            // rush that beelines its swarm to our king (some maps kill us before a
-            // ring exists). Defenders already near the king pitch in, thickening
-            // the wall far faster. Trap (50 dmg + 30 stun) beats one bite (10), so
-            // wall first; otherwise fall back to defensive micro. War-gated, so
-            // this never fires (nor spends cheese) against a passive opponent.
+            // Once at war, a defender on the king's doorstep has three escalating
+            // home-defence options, all of which remove a biter from the ~80
+            // dmg/round swarm before resorting to a plain trade:
+            //   1. if we are already carrying an enemy, finish hurling it away;
+            //   2. else lay a rat trap on the king's ring (50 dmg + 30 stun) — the
+            //      king alone lays only 1/round, so defenders thicken it far faster;
+            //   3. else ratnap the biggest enemy biter we can (it is then stunned
+            //      and immune, neutralised for as long as we hold it).
+            // All war-gated, so none of this fires (nor spends cheese) versus a
+            // passive opponent we never go to war with.
             boolean war = !rc.isCooperation();
-            if (!(war && layKingWallTrap(rc, cur))) {
-                if (!Micro.fight(rc, robots, homeKing)) {
-                    Pathfinder.moveTo(rc, enemy.getLocation());
+            boolean acted = false;
+            if (war) {
+                if (rc.getCarrying() != null) {
+                    acted = Micro.ratnapDefend(rc, robots, homeKing);
+                } else if (layKingWallTrap(rc, cur)) {
+                    acted = true;
+                } else {
+                    acted = Micro.ratnapDefend(rc, robots, homeKing);
                 }
+            }
+            if (!acted && !Micro.fight(rc, robots, homeKing)) {
+                Pathfinder.moveTo(rc, enemy.getLocation());
             }
             indicate(rc, raw);
             return;
