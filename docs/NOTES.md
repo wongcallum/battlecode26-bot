@@ -203,3 +203,30 @@ Newest sections appended at the bottom.
   with dirt** (free) to block/slow the rush and cut trap-drain, and a **light war
   economy** so the ring sustains to r2000 (a living king wins the 0.5 backstab
   term). Tracked for V5.1.
+
+### V5.1 — tried war income + dirt walls (REVERTED, kept as a finding)
+
+- Hypothesis: the turtle dies only because it runs out of cheese, so give it
+  **income** — drop `WAR_RESERVE` 1200→300 so the king spawns foragers at war, stop
+  the rats *rallying* to the king (they just died there) and let them **forage**
+  instead, plus an opportunistic free **dirt wall** (`getDirt()` stockpile) on the
+  threat side. Expectation: income sustains the ring to r2000 → win on king survival.
+- Result: **regressed across the board** — survival fell from V5's r250–650 back to
+  **r136–450** vs all three bots, both sides. Reverted entirely to V5.
+- Why it loses: **under siege the enemy owns the field, so spawned foragers die
+  before they can deliver.** The cheese spent on them is cheese stolen from the trap
+  ring — the *only* thing keeping the king alive — so we starve the defence faster.
+  With no income, **conserving for the ring (the V5 turtle) is strictly better.**
+- The decisive arithmetic (the real lesson): the turtle bleeds ~3.6 cheese/round
+  (2 upkeep + ~1.6 trap re-lay) with **zero income**, and surviving r34→2000 at that
+  rate needs **~7000 cheese while we start with 2500**. So a pure turtle *cannot*
+  reach r2000 — it can only delay death (measured ceilings r600–1300). **Winning
+  requires income, income requires foragers that survive, so beating these rush bots
+  is a combat problem (V6), not a defence-tuning problem.**
+- Dirt walls are not the free backbone they first looked: `placeDirt` needs a
+  **dug-dirt stockpile** *and* costs **25 action cooldown**, so on open maps (nothing
+  to dig) there is nothing to wall with. It is a bonus on dirt-rich maps, not a
+  general anti-rush tool.
+- Decision: keep V5's conserving turtle. The path to actual wins is **V6 — defensive
+  combat micro**: protect/escort foragers so income survives, and make the ring + a
+  biting king lethal enough to break the rush and earn breathing room.
