@@ -213,6 +213,6 @@ result/
 
 # ignore everything except for my bot and the example bots
 
-src/
+src/*
 !src/examplefuncsplayer*/
 !src/wongcallum/
