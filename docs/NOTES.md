@@ -106,3 +106,24 @@ Newest sections appended at the bottom.
 - Open issue: on `cheesefarm` a king dies ~round 380 for both versions
   regardless — likely cat pressure on that map, not an economy problem. Wants the
   future combat/cat-trap work, not more economy tuning.
+
+### V2.3 — dig through dirt barriers
+
+- The cheesefarm "king dies ~r380" issue was *not* cats: that map is carved up by
+  diagonal **dirt barriers**. Dirt is impassable (`isPassable` = no wall and no
+  dirt), and our Bug2 treated it like a permanent wall — but the barriers run to
+  the map edge, so wall-following never gets around them and the whole swarm piled
+  up against them next to the king and slowly starved.
+- Fix: rats `removeDirt()` (cost 5 cheese, action cooldown 25, dist² 2, in-cone) a
+  dirt tile to tunnel straight through. The hard part was *when* to dig:
+  - First cut dug any dirt blocking the straight line. **Regressed Small/Medium**
+    — two bugs: (1) `tryDig` force-turned to face the blocked tile every turn,
+    which wrecked wall-following (it faces *along* the wall, not at the target);
+    (2) digging small dirt patches wastes cheese/cooldown vs just stepping around.
+  - Final: dig only as a **last resort** — after wall-following the same obstacle
+    for `DIG_AFTER = 10` steps without escaping (i.e. a real barrier, not a nub).
+    Then face the target and dig one tile through, reset, resume the straight line.
+- Head-to-head vs V2.2, both orientations, suite: **V2.3 wins 2–0 on Medium,
+  Large, cheesefarm and starvation**, ties Small 1–1, regresses nothing. On
+  cheesefarm the dirt-blind V2.2 king starves out by ~r380 while V2.3 breaks out
+  and wins.
