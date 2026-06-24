@@ -19,6 +19,14 @@ public class Const {
 
     // the king senses attackers within this radius to bite them while it turtles
     static final int KING_THREAT_RADIUS_SQUARED = 16;
+
+    // MOBILE KING (the winning bots all walk their king onto cheese to self-feed):
+    // react to a cat within this radius by laying cat traps in its path.
+    static final int KING_CAT_RADIUS_SQUARED = 16;
+    // in war, if at least this many enemy rats crowd the king within
+    // KING_THREAT_RADIUS_SQUARED, drift away from them while biting (it can't outrun
+    // rats, but it shouldn't walk into a swarm either).
+    static final int KING_FLEE_ENEMY_COUNT = 4;
     // at war the trap ring defends the king alone, so foragers don't rally — they
     // flee an enemy within this radius (then keep foraging) to stay alive and keep
     // delivering income, instead of dying uselessly in the swarm at the king.

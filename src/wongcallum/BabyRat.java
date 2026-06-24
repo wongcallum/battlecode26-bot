@@ -12,6 +12,12 @@ public class BabyRat {
     static int targetTurns = 0;
     static boolean seeded = false;
 
+    // mines we've personally seen, squeaked round-robin so a king in range can
+    // publish them to the shared array (rats can't write it themselves).
+    static MapLocation[] mineMem = new MapLocation[8];
+    static int mineCount = 0;
+    static int squeakCursor = 0;
+
     static void act(RobotController rc) throws GameActionException {
         // every rat's Const.rng is seeded with the same constant, so without this
         // they all draw identical explore targets and march in lockstep. reseed
@@ -49,6 +55,14 @@ public class BabyRat {
         updateHome(rc, allies, cur);
         pickUpAdjacent(rc, infos);
 
+        // remember mines we see and squeak one each turn so a nearby king can publish
+        // it to the shared array (this is what lets the king walk to a mine to camp).
+        rememberMines(infos);
+        if (mineCount > 0) {
+            rc.squeak(Comms.encodeMine(mineMem[squeakCursor % mineCount]));
+            squeakCursor++;
+        }
+
         int raw = rc.getRawCheese();
         MapLocation nearestCheese = nearestCheese(cur, infos);
 
@@ -60,11 +74,13 @@ public class BabyRat {
             return;
         }
 
-        // collecting: go to the nearest visible cheese, otherwise explore
+        // collecting: nearest visible cheese; else head to a KNOWN mine (skip the one
+        // we're standing on); else random-explore to discover new mines.
         MapLocation target = nearestCheese;
         if (target == null) {
             if (exploreTarget == null || cur.distanceSquaredTo(exploreTarget) <= 8 || targetTurns > 60) {
-                exploreTarget = pickExploreTarget(rc, allies);
+                MapLocation mine = Comms.nearestKnownMine(rc, cur, 16);
+                exploreTarget = (mine != null) ? mine : pickExploreTarget(rc, allies);
                 targetTurns = 0;
             }
             targetTurns++;
@@ -151,6 +167,19 @@ public class BabyRat {
                 rc.pickUpCheese(mi.getMapLocation());
             }
         }
+    }
+
+    private static void rememberMines(MapInfo[] infos) {
+        for (MapInfo mi : infos) {
+            if (mi.hasCheeseMine()) addMine(mi.getMapLocation());
+        }
+    }
+
+    private static void addMine(MapLocation m) {
+        for (int i = 0; i < mineCount; i++) {
+            if (mineMem[i].equals(m)) return;
+        }
+        if (mineCount < mineMem.length) mineMem[mineCount++] = m;
     }
 
     private static MapLocation nearestCheese(MapLocation cur, MapInfo[] infos) {

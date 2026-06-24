@@ -3,61 +3,106 @@ package wongcallum;
 import battlecode.common.*;
 
 public class RatKing {
-    // keep this much global cheese as a buffer for upkeep (2/round) before spawning.
-    // rats now deliver cheese, so the floor protects king survival while still
-    // letting us build a workforce when income is healthy.
+    // a stationary king starves; a king that roams gets ganked. so: while peace
+    // holds the king forages cheese it can see WITHIN a short leash of its spawn
+    // (self-feeding without exposing the instant-loss unit), and spawns an army. the
+    // instant a war ever starts it locks into the proven V6 turtle — a standing
+    // hidden rat-trap ring the enemy dies walking into — and never moves again.
     static final int SPAWN_FLOOR = 400;
+    static final int FORAGE_LEASH_SQUARED = 2500; // effectively the whole map (war-lock keeps it safe)
+
+    static final int CAMP_RADIUS_SQUARED = 16; // settle within ~4 tiles of the target mine
+
+    static MapLocation spawnLoc = null;
+    static MapLocation campMine = null; // the mine we've committed to camping
+    static boolean warStarted = false;
+    static boolean seeded = false;
 
     static void act(RobotController rc) throws GameActionException {
-        broadcastLocation(rc);
+        if (!seeded) {
+            Const.rng.setSeed(rc.getID() * 0x9E3779B9L);
+            seeded = true;
+        }
+        MapLocation cur = rc.getLocation();
+        if (spawnLoc == null) spawnLoc = cur;
+        broadcastLocation(rc, cur);
 
-        // free global cheese: grab anything within reach (king has 360 vision)
-        for (MapInfo mi : rc.senseNearbyMapInfos(GameConstants.CHEESE_PICK_UP_RADIUS_SQUARED)) {
+        MapInfo[] infos = rc.senseNearbyMapInfos();
+        RobotInfo[] all = rc.senseNearbyRobots();
+        RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+        if (!rc.isCooperation()) warStarted = true;
+
+        // a mobile king feeds itself: grab every cheese tile in reach into global
+        for (MapInfo mi : infos) {
             if (mi.getCheeseAmount() > 0 && rc.canPickUpCheese(mi.getMapLocation())) {
                 rc.pickUpCheese(mi.getMapLocation());
             }
         }
 
-        MapLocation cur = rc.getLocation();
-
-        // war mode (the backstab has happened): turtle behind a hidden trap ring and
-        // a war-chest. gated on !cooperation so against a passive opponent (no
-        // backstab) the peace economy and cat-trap pillar are completely untouched —
-        // crucially, no SOS fires for harmless cooperating enemy foragers.
-        if (!rc.isCooperation()) {
-            RobotInfo[] enemies = rc.senseNearbyRobots(Const.KING_THREAT_RADIUS_SQUARED, rc.getTeam().opponent());
-            warAct(rc, cur, enemies);
-            return;
+        // publish mines: those in our own vision, plus everything nearby rats squeak
+        for (MapInfo mi : infos) {
+            if (mi.hasCheeseMine()) Comms.publishMine(rc, mi.getMapLocation());
+        }
+        Message[] squeaks = rc.readSqueaks(-1);
+        for (int i = 0; i < squeaks.length && i < 16; i++) {
+            MapLocation m = Comms.decodeMine(squeaks[i].getBytes());
+            if (rc.onTheMap(m)) Comms.publishMine(rc, m);
         }
 
-        // peace: ring cats with cat traps, otherwise run the economy spawn
-        RobotInfo cat = Combat.nearestCat(cur, rc.senseNearbyRobots(GameConstants.RAT_KING_BUILD_DISTANCE_SQUARED * 2));
-        if (cat != null && Combat.kingHandleCat(rc, cur, cat)) return;
+        // TEMP: trace king position + nearest known mine (remove before commit)
+        if (rc.getRoundNum() % 50 == 0) {
+            System.out.println("TRACE r=" + rc.getRoundNum() + " gc=" + rc.getGlobalCheese()
+                + " coop=" + rc.isCooperation() + " @" + cur
+                + " nearestMine=" + Comms.nearestKnownMine(rc, cur, 0));
+        }
 
-        if (rc.getGlobalCheese() <= SPAWN_FLOOR) return;
-        // identical to the pre-V5 economy spawn so peace play is provably unchanged
-        for (Direction d : Const.DIRECTIONS) {
-            MapLocation loc = cur.translate(2 * d.dx, 2 * d.dy);
-            if (rc.canBuildRat(loc)) {
-                rc.buildRat(loc);
-                return;
+        RobotInfo cat = Combat.nearestCat(cur, all);
+        boolean catNear = cat != null && cur.distanceSquaredTo(cat.getLocation()) <= Const.KING_CAT_RADIUS_SQUARED;
+
+        // ACTION (one per turn): cat traps > turtle (ring then bite, once at war) >
+        // grow the army (peace only — spawning into a rush just over-drains the chest).
+        boolean acted = false;
+        if (catNear) {
+            acted = Combat.kingHandleCat(rc, cur, cat);
+        }
+        if (!acted && warStarted) {
+            acted = Combat.kingLayRatRing(rc, cur);
+            if (!acted && enemies.length > 0) {
+                acted = Combat.biteBest(rc, cur, enemies, GameConstants.RAT_KING_ATTACK_DISTANCE_SQUARED);
             }
         }
-    }
-
-    private static void warAct(RobotController rc, MapLocation cur, RobotInfo[] enemies) throws GameActionException {
-        // standing minefield first — lay it early while the perimeter is still free.
-        // the ring alone keeps the king safe (enemies die stepping into bite range),
-        // so we spend NO cheese on bodies: our army stays out foraging for income.
-        if (Combat.kingLayRatRing(rc, cur)) return;
-        if (enemies.length > 0) {
-            Combat.biteBest(rc, cur, enemies, GameConstants.RAT_KING_ATTACK_DISTANCE_SQUARED);
+        if (!acted && !warStarted && rc.getGlobalCheese() > SPAWN_FLOOR) {
+            for (Direction d : Const.DIRECTIONS) {
+                MapLocation loc = cur.translate(2 * d.dx, 2 * d.dy);
+                if (rc.canBuildRat(loc)) {
+                    rc.buildRat(loc);
+                    break;
+                }
+            }
         }
+
+        // MOVEMENT (king moves every 4 rounds): once war ever starts, hold the ring
+        // forever. in peace, hop onto nearby cheese but stay on the leash near spawn.
+        if (warStarted || !rc.isMovementReady()) {
+            rc.setIndicatorString(warStarted ? "KING turtle" : "KING (no move)");
+            return;
+        }
+        // commit to the nearest known mine and camp it (so it doesn't oscillate
+        // between equidistant mines): walk there, then sit in the cluster of cheese
+        // and rat traffic. once camped, stay put.
+        if (campMine == null) {
+            MapLocation m = Comms.nearestKnownMine(rc, cur, 0);
+            if (m != null && spawnLoc.distanceSquaredTo(m) <= FORAGE_LEASH_SQUARED) campMine = m;
+        }
+        if (campMine != null && cur.distanceSquaredTo(campMine) > CAMP_RADIUS_SQUARED) {
+            Pathfinder.moveTo(rc, campMine);
+            rc.setIndicatorString("KING -> mine " + campMine);
+            return;
+        }
+        rc.setIndicatorString("KING camp " + campMine);
     }
 
-    // store our location in the shared array so baby rats know where to deliver
-    private static void broadcastLocation(RobotController rc) throws GameActionException {
-        MapLocation me = rc.getLocation();
+    private static void broadcastLocation(RobotController rc, MapLocation me) throws GameActionException {
         rc.writeSharedArray(Const.KING_X_SLOT, me.x + 1);
         rc.writeSharedArray(Const.KING_Y_SLOT, me.y + 1);
     }
