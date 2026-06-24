@@ -373,6 +373,14 @@ if (project.findProperty("languageA") == "python" || project.findProperty("langu
 
 //////// Informational ////////
 
+task printRuntimeClasspath {
+  description 'Prints the runtime classpath (used by bench.nu to invoke matches directly).'
+  group 'battlecode'
+  doLast {
+    println sourceSets.main.runtimeClasspath.asPath
+  }
+}
+
 task listPlayers {
   description 'Lists all available players.'
   group 'battlecode'
