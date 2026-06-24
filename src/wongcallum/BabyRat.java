@@ -23,7 +23,23 @@ public class BabyRat {
 
         MapLocation cur = rc.getLocation();
 
-        // cat defense comes first: trap-and-peel overrides foraging
+        // king SOS comes first: a rush on the king is the instant-loss threat. rats
+        // within range rally to wall its body and bite attackers. only at war, so
+        // peace foraging is unchanged (the short-circuit skips the array read).
+        if (!rc.isCooperation() && rc.readSharedArray(Const.SOS_SLOT) == 1) {
+            int sx = rc.readSharedArray(Const.KING_X_SLOT);
+            int sy = rc.readSharedArray(Const.KING_Y_SLOT);
+            if (sx > 0 && sy > 0) {
+                MapLocation kingLoc = new MapLocation(sx - 1, sy - 1);
+                if (cur.distanceSquaredTo(kingLoc) <= Const.DEFEND_RADIUS_SQUARED) {
+                    RobotInfo[] enemies = rc.senseNearbyRobots(-1, rc.getTeam().opponent());
+                    Combat.ratDefend(rc, cur, kingLoc, enemies, rc.isCooperation());
+                    return;
+                }
+            }
+        }
+
+        // cat defense comes next: trap-and-peel overrides foraging
         RobotInfo cat = Combat.nearestCat(cur, rc.senseNearbyRobots(Const.CAT_THREAT_RADIUS_SQUARED));
         if (cat != null) {
             Combat.ratHandleCat(rc, cur, cat);

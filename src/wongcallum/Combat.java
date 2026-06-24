@@ -72,6 +72,85 @@ public class Combat {
         }
     }
 
+    static RobotInfo nearestEnemy(MapLocation cur, RobotInfo[] enemies) {
+        RobotInfo best = null;
+        int bestD = Integer.MAX_VALUE;
+        for (RobotInfo r : enemies) {
+            int d = cur.distanceSquaredTo(r.getLocation());
+            if (d < bestD) {
+                bestD = d;
+                best = r;
+            }
+        }
+        return best;
+    }
+
+    // bite the lowest-health enemy in reach (finishing removes a biter fastest).
+    // baby rats must face the target first (90 cone); the king is 360 so it cannot.
+    // only call when !isCooperation so we never initiate the backstab ourselves.
+    static boolean biteBest(RobotController rc, MapLocation cur, RobotInfo[] enemies, int range) throws GameActionException {
+        if (!rc.isActionReady()) return false;
+        RobotInfo target = null;
+        int bestHp = Integer.MAX_VALUE;
+        for (RobotInfo e : enemies) {
+            if (cur.distanceSquaredTo(e.getLocation()) > range) continue;
+            if (e.getHealth() < bestHp) {
+                bestHp = e.getHealth();
+                target = e;
+            }
+        }
+        if (target == null) return false;
+        MapLocation tloc = target.getLocation();
+        if (rc.canAttack(tloc)) {
+            rc.attack(tloc);
+            return true;
+        }
+        Direction d = cur.directionTo(tloc);
+        if (rc.isTurningReady() && rc.canTurn(d)) rc.turn(d);
+        if (rc.canAttack(tloc)) {
+            rc.attack(tloc);
+            return true;
+        }
+        return false;
+    }
+
+    // the 16 tiles around the king's 3x3 body within build range (dist^2 <= 8),
+    // i.e. the standing-minefield ring
+    static final int[][] RING = {
+        {2, 0}, {-2, 0}, {0, 2}, {0, -2}, {2, 2}, {2, -2}, {-2, 2}, {-2, -2},
+        {2, 1}, {2, -1}, {-2, 1}, {-2, -1}, {1, 2}, {-1, 2}, {1, -2}, {-1, -2},
+    };
+
+    // king fills a standing ring of hidden rat traps around itself (50 dmg + 30-turn
+    // stun on trigger, invisible to the enemy). laid proactively while the tiles are
+    // still free — the rush then walks into it. the core anti-rush tool, far better
+    // value than 100-HP blockers that just die. returns true if it placed one.
+    static boolean kingLayRatRing(RobotController rc, MapLocation cur) throws GameActionException {
+        if (!rc.isActionReady() || rc.getNumberRatTraps() >= TrapType.RAT_TRAP.maxCount) return false;
+        if (rc.getAllCheese() < TrapType.RAT_TRAP.buildCost) return false;
+        for (int[] o : RING) {
+            MapLocation t = cur.translate(o[0], o[1]);
+            if (rc.canPlaceRatTrap(t)) {
+                rc.placeRatTrap(t);
+                return true;
+            }
+        }
+        return false;
+    }
+
+    // baby rat answering the king's SOS: bite an adjacent enemy if the backstab is
+    // already on, otherwise close on the king to wall its body tiles. always takes
+    // the turn (return true) so the caller skips foraging.
+    static boolean ratDefend(RobotController rc, MapLocation cur, MapLocation kingLoc, RobotInfo[] enemies, boolean coop) throws GameActionException {
+        if (!coop && biteBest(rc, cur, enemies, GameConstants.ATTACK_DISTANCE_SQUARED)) {
+            rc.setIndicatorString("DEFEND bite");
+            return true;
+        }
+        Pathfinder.moveTo(rc, kingLoc);
+        rc.setIndicatorString("DEFEND rally " + kingLoc);
+        return true;
+    }
+
     // king: 360 vision means no facing constraint, so ring tiles toward the cat
     // (within build range 8) with traps. returns true if it placed one this turn.
     static boolean kingHandleCat(RobotController rc, MapLocation cur, RobotInfo cat) throws GameActionException {

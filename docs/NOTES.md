@@ -163,3 +163,43 @@ Newest sections appended at the bottom.
   purely on score — V3 banks cat damage that V2.3 can't, and takes the 0.5 term.
   On cheesefarm side-A V3 wins by ~r589 (the trap-less king dies to cats while
   ours neutralises them).
+
+## V5 — king defense / anti-rush (war-mode turtle)
+
+- First test vs the real reference bots (SPAARK, Version41, finalsbot) was a wake-
+  up call: **0/18, dying at r78–352** — far short of the 2000-round economy game.
+  A debug trace of the king showed the cause: enemies bite the king to death
+  ("destroyed all of the enemy team's rat kings"); the aggressive bots **backstab
+  almost immediately** (`isCooperation()` is already false by ~r34), so we are at
+  war the whole game with no answer.
+- Engine facts (from source): **biting an enemy rat/king initiates the backstab**
+  (`InternalRobot.backstab(this.team)`), as does ratnapping — biting a **cat** does
+  not. So all retaliation must be gated on `!isCooperation()` or we become the
+  aggressor (which also disables our own cat traps). Rat trap: **20 cheese → 50
+  damage + a 30-turn stun, hidden from the enemy**, max 25 active, triggered when an
+  enemy *moves into* dist² ≤ 2. Placing dirt costs **0 cheese**. King attacks within
+  dist² 8 (360°, no facing); baby rats within dist² 2 (must face the target).
+- What failed: **spawning body-blockers.** The trace showed the king dumping its
+  whole 2500-cheese war-chest into 100-HP rats at a rising cost (10→90) that the
+  enemy one-shot with cheese-boosted bites — they died as fast as we made them, and
+  once cheese ran out the king was defenceless. 40-cheese blockers are the wrong
+  tool.
+- What worked: a **standing ring of hidden rat traps** (`Combat.kingLayRatRing` —
+  the 16 perimeter tiles within build range, laid *proactively* while still free,
+  not reactively in occupied melee). The trap ring held the king at **548 HP from
+  ~r70 to ~r253** against wave after wave — survival jumped to **r250–650, a 3–5×
+  improvement** across every bot and map. The traps are invisible to the enemy, so
+  the rush walks straight into them.
+- Design is a **coop-gated war mode** (`RatKing.warAct`): once `!isCooperation()`,
+  turtle behind the trap ring + a `WAR_RESERVE = 1200` war-chest, bite attackers in
+  melee, and raise an SOS (`SOS_SLOT`) so nearby rats rally to wall the king. Gating
+  on `!coop` is essential: a passive opponent never backstabs, so war mode never
+  fires and the peace economy + cat-trap pillar are **provably unchanged** — V5 vs
+  V3 is a 5–5 split on the economy suite (every map a 1-1 first-mover tie), i.e. no
+  regression.
+- Still **0 wins** vs the reference bots: the new failure mode is pure **cheese
+  starvation** — under siege we have no income, so we eventually can't re-lay
+  triggered traps and the ring decays. Next levers (cheap/free): **wall the king
+  with dirt** (free) to block/slow the rush and cut trap-drain, and a **light war
+  economy** so the ring sustains to r2000 (a living king wins the 0.5 backstab
+  term). Tracked for V5.1.
