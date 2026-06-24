@@ -127,3 +127,39 @@ Newest sections appended at the bottom.
   Large, cheesefarm and starvation**, ties Small 1–1, regresses nothing. On
   cheesefarm the dirt-blind V2.2 king starves out by ~r380 while V2.3 breaks out
   and wins.
+
+## V3 — cat traps + cat avoidance (the cat-damage pillar)
+
+- First combat work (PLAN's V7 cat-traps + a V5 cat-defense seed). Cat damage is
+  **half the cooperation score** (`0.5·%catDamage`) and we banked **zero** before
+  this. Cat traps are the lever: **10 cheese → 100 damage + a 20-turn stun**,
+  placeable freely in cooperation, **max 10 active**, single-use (removed when a
+  cat triggers it). The trap only fires when a **cat moves into** trigger range
+  (dist² ≤ 2), so traps must sit in the cat's *path*, not merely near it.
+- Engine facts that shaped the design (read from source, not guessed): cats are
+  `Team.NEUTRAL`, roam waypoints, chase the nearest rat, and get **distracted by
+  squeaks** (so squeaking near cats is self-harming). Baby rat moves at cooldown
+  10 vs the cat's **20**, so a rat out-runs a cat in a straight retreat (the "flee
+  perpendicular" rule is only for the cooldown-40 king). Trap placement needs the
+  tile **in the 90° vision cone** for a rat (must face it) but the **king is 360°**
+  and has no facing constraint. A rat carrying ≥10 raw cheese pays for the trap
+  from **its own stash**, not global — trapping rarely touches the king's buffer.
+- Behaviour (`Combat.java`):
+  - **Baby rat — trap-and-peel.** Within dist² 16 of a cat: face it (puts the trap
+    tile in-cone), drop a cat trap on the tile *between* us and the cat, then
+    greedily step to the passable neighbour that maximises distance. The chasing
+    cat walks across the fresh trap; the rat (twice as fast) gets away. Overrides
+    foraging only while a cat is near — the no-cat path is byte-for-byte unchanged.
+  - **King — defensive ring.** A cat within sight makes the king spend that turn's
+    action laying a cat trap toward it (360° = place anywhere in build range 8)
+    instead of spawning. Survival outranks the spawn; it resumes building when
+    clear.
+  - **Reserve gate.** Never dip *global* cheese below `CAT_TRAP_RESERVE = 200` for
+    a trap (protects king upkeep); a carrying rat just spends its own raw cheese.
+    The 10-active cap self-limits the swarm so we never over-spend.
+- Head-to-head vs V2.3, both orientations, suite {Small, Medium, Large,
+  cheesefarm, starvation}: **V3 wins 10/10, zero coin-flip ties.** Medium and
+  Large run the full 2000 rounds with both kings alive, so the win is decided
+  purely on score — V3 banks cat damage that V2.3 can't, and takes the 0.5 term.
+  On cheesefarm side-A V3 wins by ~r589 (the trap-less king dies to cats while
+  ours neutralises them).

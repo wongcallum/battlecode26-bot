@@ -22,6 +22,14 @@ public class BabyRat {
         }
 
         MapLocation cur = rc.getLocation();
+
+        // cat defense comes first: trap-and-peel overrides foraging
+        RobotInfo cat = Combat.nearestCat(cur, rc.senseNearbyRobots(Const.CAT_THREAT_RADIUS_SQUARED));
+        if (cat != null) {
+            Combat.ratHandleCat(rc, cur, cat);
+            return;
+        }
+
         RobotInfo[] allies = rc.senseNearbyRobots(-1, rc.getTeam());
         MapInfo[] infos = rc.senseNearbyMapInfos();
 

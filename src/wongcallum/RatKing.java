@@ -18,6 +18,12 @@ public class RatKing {
             }
         }
 
+        // a cat near the king: spend this turn's action ringing it with traps
+        // (king survival outranks spawning) instead of building a rat
+        MapLocation cur = rc.getLocation();
+        RobotInfo cat = Combat.nearestCat(cur, rc.senseNearbyRobots(GameConstants.RAT_KING_BUILD_DISTANCE_SQUARED * 2));
+        if (cat != null && Combat.kingHandleCat(rc, cur, cat)) return;
+
         if (rc.getGlobalCheese() <= SPAWN_FLOOR) return;
 
         MapLocation center = rc.getLocation();
