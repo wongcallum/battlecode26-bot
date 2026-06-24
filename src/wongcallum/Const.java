@@ -7,6 +7,10 @@ import java.util.Random;
 public class Const {
     static final Random rng = new Random(6147);
 
+    // shared-array slots: the king broadcasts its location here for rats to home to
+    static final int KING_X_SLOT = 0;
+    static final int KING_Y_SLOT = 1;
+
     static final Direction[] DIRECTIONS = {
         Direction.NORTH,
         Direction.NORTHEAST,
