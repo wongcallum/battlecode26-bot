@@ -24,6 +24,7 @@ public final class RatKing {
     private static final int SPAWN_INTERVAL = 8;
     private static final int CAT_TRAP_RANGE_DSQ = 16; // only trap a cat closing on us
     private static final int WAR_CHEESE_FLOOR = 60;   // keep a little cheese once at war
+    private static final int TRAP_GUARD_DSQ = 25;     // only refill the wall while a threat is this close
 
     static int lastSpawnRound = -SPAWN_INTERVAL;
     static int spawnedCount = 0;                     // persistent total spawned
@@ -51,22 +52,28 @@ public final class RatKing {
         // forever and the trap wall below never fires (preserving our economy), but
         // the instant a real bot backstabs us we start walling the king in.
         boolean war = !rc.isCooperation();
+        // PURE-FRUGAL (reverted): only (re)build the wall while an enemy is within
+        // the king's vision, and never spawn a doomed rat at war — an attempt to
+        // stop the cheese pool bleeding out behind the wall. Net-NEGATIVE: it
+        // helped economic opponents but cratered the persistent rusher (SPAARK),
+        // because killing the proactive pre-build leaves a fast rush hitting a bare
+        // perimeter. See main's baseline-ring hybrid for the fix.
+        boolean enemyNearKing = enemy != null
+                && rc.getLocation().isWithinDistanceSquared(enemy.getLocation(), TRAP_GUARD_DSQ);
 
         if (enemy != null && rc.canAttack(enemy.getLocation())) {
             // 1) bite the nearest enemy in reach (king reach is radius^2 8)
             rc.attack(enemy.getLocation());
-        } else if (war && buildRatTrapWall(rc, enemy, cheese)) {
-            // 2) at war, ring the king with rat traps (placed above): each does 50
-            // damage + a 30-round stun to an enemy stepping near, blunting the
-            // bite-swarm (up to 8 adjacent biters = 80 dmg/round) that otherwise
-            // melts our 600-hp king in ~8 rounds.
+        } else if (war && enemyNearKing && buildRatTrapWall(rc, enemy, cheese)) {
+            // 2) at war, while a threat is closing, ring the king with rat traps.
         } else if (cat != null
                 && rc.getLocation().isWithinDistanceSquared(cat.getLocation(), CAT_TRAP_RANGE_DSQ)
                 && rc.getNumberCatTraps() < TrapType.CAT_TRAP.maxCount
                 && cheese >= CHEESE_BUFFER + TrapType.CAT_TRAP.buildCost
                 && placeCatTrapToward(rc, cat.getLocation())) {
-            // 2) stun an approaching cat with a doorstep trap (placed above)
-        } else if (spawnedCount < Math.min(RATS_MAX, RATS_MIN + RATS_PER_MINE * Comms.knownMines)
+            // 3) stun an approaching cat with a doorstep trap (placed above)
+        } else if (!war
+                && spawnedCount < Math.min(RATS_MAX, RATS_MIN + RATS_PER_MINE * Comms.knownMines)
                 && round - lastSpawnRound >= SPAWN_INTERVAL
                 && cheese >= rc.getCurrentRatCost() + CHEESE_BUFFER) {
             // grow: scale to mines the king can see (persistent count; visible rats
