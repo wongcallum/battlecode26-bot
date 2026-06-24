@@ -10,8 +10,17 @@ public class BabyRat {
     static MapLocation home = null;        // last known allied rat king location
     static MapLocation exploreTarget = null;
     static int targetTurns = 0;
+    static boolean seeded = false;
 
     static void act(RobotController rc) throws GameActionException {
+        // every rat's Const.rng is seeded with the same constant, so without this
+        // they all draw identical explore targets and march in lockstep. reseed
+        // per-id so the swarm decorrelates and spreads across the map.
+        if (!seeded) {
+            Const.rng.setSeed(rc.getID() * 0x9E3779B9L);
+            seeded = true;
+        }
+
         MapLocation cur = rc.getLocation();
         RobotInfo[] allies = rc.senseNearbyRobots(-1, rc.getTeam());
         MapInfo[] infos = rc.senseNearbyMapInfos();
@@ -34,17 +43,44 @@ public class BabyRat {
         MapLocation target = nearestCheese;
         if (target == null) {
             if (exploreTarget == null || cur.distanceSquaredTo(exploreTarget) <= 8 || targetTurns > 60) {
-                exploreTarget = randomLocation(rc);
+                exploreTarget = pickExploreTarget(rc, allies);
                 targetTurns = 0;
             }
             targetTurns++;
             target = exploreTarget;
         }
         if (!Pathfinder.moveTo(rc, target) && target == exploreTarget) {
-            exploreTarget = randomLocation(rc);
+            exploreTarget = pickExploreTarget(rc, allies);
             targetTurns = 0;
         }
         rc.setIndicatorString("collect " + raw + " -> " + target);
+    }
+
+    // anti-clustering: sample a few random cells and keep the one that sits
+    // farthest from our nearest visible ally, so rats push off each other and
+    // cover more of the map (and more mines) instead of trailing one another
+    private static MapLocation pickExploreTarget(RobotController rc, RobotInfo[] allies) {
+        MapLocation best = randomLocation(rc);
+        if (allies.length == 0) return best;
+        int bestScore = minDistToAlly(best, allies);
+        for (int i = 0; i < 3; i++) {
+            MapLocation cand = randomLocation(rc);
+            int s = minDistToAlly(cand, allies);
+            if (s > bestScore) {
+                bestScore = s;
+                best = cand;
+            }
+        }
+        return best;
+    }
+
+    private static int minDistToAlly(MapLocation loc, RobotInfo[] allies) {
+        int best = Integer.MAX_VALUE;
+        for (RobotInfo r : allies) {
+            int d = loc.distanceSquaredTo(r.getLocation());
+            if (d < best) best = d;
+        }
+        return best;
     }
 
     // close to the king: face it and dump our cheese; otherwise navigate toward it

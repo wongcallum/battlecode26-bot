@@ -86,3 +86,23 @@ Newest sections appended at the bottom.
 - Note on scoring: in cooperation, points = `0.5·%catDamage + 0.3·%livingKings +
   0.2·%cheese`. Cheese is only 20%; since neither bot fights cats or makes extra
   kings, head-to-head wins here are effectively a cheese-throughput proxy.
+
+### V2.2 — anti-clustering (coverage via spreading)
+
+- Two changes, both aimed at covering more mines at once instead of trailing
+  each other:
+  1. **Per-id RNG seed.** `Const.rng` was seeded with one constant for every
+     rat. Statics are per-robot, but identical seeds mean every rat draws the
+     *same* explore-target sequence and moves in lockstep. Reseed with
+     `getID() * 0x9E3779B9` on the first turn so the swarm decorrelates.
+  2. **Repulsion on explore targets.** When (re)picking an explore cell, sample 4
+     random cells and keep the one farthest from the nearest *visible* ally, so
+     rats push off local clumps and fan out.
+- Head-to-head vs committed V2 (no memory), both orientations, suite {Small,
+  Medium, Large, cheesefarm, starvation}: **V2.2 wins 2–0 on Small, Medium and
+  Large**; cheesefarm and starvation tie 1–1. This is the inverse of the failed
+  memory experiment, which *lost* Medium/Large — coverage, not memory, is the
+  lever, exactly as predicted in V2.1.
+- Open issue: on `cheesefarm` a king dies ~round 380 for both versions
+  regardless — likely cat pressure on that map, not an economy problem. Wants the
+  future combat/cat-trap work, not more economy tuning.
