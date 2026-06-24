@@ -62,3 +62,27 @@ Newest sections appended at the bottom.
   starves ~1310) where V1 lost to our own starvation at 1060; a wongcallum mirror
   runs the full 2000 rounds with both kings alive, confirming the economy is
   net-sustainable rather than just outlasting a weak opponent.
+
+### V2.1 — tried cheese-mine memory (REVERTED, kept as a finding)
+
+- Rats visibly take long random paths and "forget" mines they've cleared. Tried
+  to fix it two ways: (a) remember mine centers (`MapInfo.hasCheeseMine()`) and
+  return to the nearest known mine; (b) remember the tile where the rat *last*
+  found cheese and shuttle back to it ("territory" memory).
+- Benchmarked each as a head-to-head vs the no-memory V2, both map orientations,
+  over the suite {Small, Medium, Large, cheesefarm, starvation}. Both memory
+  variants **lost decisively** on Medium, Large and cheesefarm; only won on Small.
+  Territory memory even **starved our own king** on cheesefarm (game lost ~r390).
+- Why memory loses: cheese respawns slowly at a mine (~1 spawn / ~70 rounds), so a
+  *just-harvested* spot is depleted and low expected-value to revisit, while a
+  random wanderer keeps stumbling onto cheese that has *accumulated* at mines
+  nobody is working. Any "go back to where I found cheese" rule also feeds back
+  toward easily-found (near-king) mines and starves coverage of distant ones —
+  the exact accumulation we set out to fix. Random's ignorance ≈ good coverage.
+- Decision: keep pure-random exploration. The real lever for more cheese is
+  *better coverage / anti-clustering* (spread rats across distinct mines), not
+  memory — but that needs coordination (king-aggregated mine list, or squeaks)
+  and is left for a future version.
+- Note on scoring: in cooperation, points = `0.5·%catDamage + 0.3·%livingKings +
+  0.2·%cheese`. Cheese is only 20%; since neither bot fights cats or makes extra
+  kings, head-to-head wins here are effectively a cheese-throughput proxy.
