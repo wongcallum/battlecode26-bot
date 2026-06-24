@@ -20,6 +20,8 @@ public final class RatKing {
     private static final int SPAWN_INTERVAL = 8;
     private static final int CAT_TRAP_RANGE_DSQ = 16; // only trap a cat closing on us
     private static final int WAR_CHEESE_FLOOR = 60;   // keep a little cheese once at war
+    private static final int TRAP_GUARD_DSQ = 25;     // top the wall up only while a threat is this close
+    private static final int MIN_RING = 10;           // ...but always keep at least this many traps up
 
     static int lastSpawnRound = -SPAWN_INTERVAL;
     static int spawnedCount = 0;                     // persistent total spawned
@@ -41,9 +43,19 @@ public final class RatKing {
 
         boolean war = !rc.isCooperation();
 
+        // testing against aggressive bots shows that the trap wall works,
+        // but then we starve because repairing the ring uses too much cheese
+        // try to spend cheese only to repair when there is an incoming threat
+        boolean enemyNearKing = enemy != null
+                && rc.getLocation().isWithinDistanceSquared(enemy.getLocation(), TRAP_GUARD_DSQ);
+        boolean maintainWall = enemyNearKing || rc.getNumberRatTraps() < MIN_RING;
+        rc.setIndicatorString("RAT_KING | hp=" + rc.getHealth() + " cheese=" + cheese
+                + " spawned=" + spawnedCount + " ratTraps=" + rc.getNumberRatTraps()
+                + (war ? " WAR" : " COOP"));
+
         if (enemy != null && rc.canAttack(enemy.getLocation())) {
             rc.attack(enemy.getLocation());
-        } else if (war && buildRatTrapWall(rc, enemy, cheese)) {
+        } else if (war && maintainWall && buildRatTrapWall(rc, enemy, cheese)) {
             // at war, ring the king with rat traps, each doing dmg + stun
             // in an attempt to curb a bite swarm that can kill the king in 8 rounds
         } else if (cat != null
