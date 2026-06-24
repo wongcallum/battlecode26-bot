@@ -138,19 +138,6 @@ public class Combat {
         return false;
     }
 
-    // baby rat answering the king's SOS: bite an adjacent enemy if the backstab is
-    // already on, otherwise close on the king to wall its body tiles. always takes
-    // the turn (return true) so the caller skips foraging.
-    static boolean ratDefend(RobotController rc, MapLocation cur, MapLocation kingLoc, RobotInfo[] enemies, boolean coop) throws GameActionException {
-        if (!coop && biteBest(rc, cur, enemies, GameConstants.ATTACK_DISTANCE_SQUARED)) {
-            rc.setIndicatorString("DEFEND bite");
-            return true;
-        }
-        Pathfinder.moveTo(rc, kingLoc);
-        rc.setIndicatorString("DEFEND rally " + kingLoc);
-        return true;
-    }
-
     // king: 360 vision means no facing constraint, so ring tiles toward the cat
     // (within build range 8) with traps. returns true if it placed one this turn.
     static boolean kingHandleCat(RobotController rc, MapLocation cur, RobotInfo cat) throws GameActionException {

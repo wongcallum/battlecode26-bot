@@ -230,3 +230,48 @@ Newest sections appended at the bottom.
 - Decision: keep V5's conserving turtle. The path to actual wins is **V6 — defensive
   combat micro**: protect/escort foragers so income survives, and make the ring + a
   biting king lethal enough to break the rush and earn breathing room.
+
+## V6 — diagnose the death, then stop the suicide-rally
+
+- Began V6 by **instrumenting the king** (a temporary per-turn `System.out` trace of
+  hp / global cheese / trap count / sensed enemies / sensed allies) and reading a full
+  match vs Version41 on DefaultSmall. The trace settled what V5 was actually dying of,
+  and it was **not** what the V5 notes assumed:
+  - r60–92: the opening rush lands; the king drops 600→406 and **our whole army dies in
+    the SOS rally** (sensed allies 7→0).
+  - r92–256: the king sits at ~400 HP with **`threat=0, adj=0` for ~160 rounds** behind a
+    full 16-trap ring. The **ring alone neutralises the rush** — attackers die stepping
+    into bite range, so none ever reach the king's body tiles. Defence is *solved*.
+  - r256: global cheese reaches 0; the king then bleeds the **10 HP/round starvation
+    penalty** and dies r277. It dies **broke, never overwhelmed.**
+- So the binding constraint is **income/starvation, not combat lethality.** And the floor
+  is unforgiving: upkeep alone is 2 cheese/round, so 2500 starting cheese is gone by
+  ~r1250 *even with a free, perfect defence*. **There is no turtle-only path to r2000 —
+  income is mandatory.** (Sharpens the V5.1 arithmetic: the issue isn't trap re-lay cost,
+  it's that we have no income at all.)
+- **Rejected — war rebuild-spawn (V6.0).** First reflex was to give the king income by
+  spawning foragers during the long clear windows (gate: no enemy sensed, cheese above a
+  floor). Regressed hard: r277→**r162**. The crew did reach 7 rats, but spawning drained
+  the war-chest ~40/round while the foragers (which still have to leave the safe bubble to
+  find cheese) delivered too little, too late — the king starved *earlier*. Same shape as
+  V5.1: bodies cost more than they bring. Reverted.
+- **Kept — stop the suicide-rally (the V6 checkpoint).** The trace's real tell is that the
+  rally is *counterproductive*: it feeds our existing income-generating army into the
+  meat-grinder at the king (allies 7→0) for **no defensive benefit**, because the trap
+  ring already holds the king. So at war the rats **no longer rally** — they flee an enemy
+  within `WAR_FLEE_RADIUS_SQUARED` (then keep foraging), staying alive to deliver. The king
+  drops the rally/SOS entirely and just lays its ring + bites (`warAct`).
+- Result vs the three rush bots (both sides, Default Small/Med/Large): total survival
+  **7255→8195 rounds (+13%)**, better-or-equal on 8 of 9 map-pairs (Version41/Medium
+  r565→**r925**). The king now holds ~528 HP instead of ~356 — without the rally, the swarm
+  is never drawn onto it. Peace play is untouched (all war code is gated on
+  `!isCooperation`), and the change *deletes* the SOS slot, `DEFEND_RADIUS_SQUARED`, and
+  `Combat.ratDefend` — strictly simpler.
+- **Still 0 wins, and the trace says why:** even fleeing, our foragers are dead by ~r96
+  because **the enemy controls the open field** — they wander into it and get caught, so
+  income stays zero and the king just starves later (r256→r324). Fleeing a single nearest
+  enemy locally isn't enough; the rats have no notion of *where* safety is.
+- Next lever (V6.1): the king **broadcasts the threat direction**; foragers forage the
+  **safe side** (away from the enemy king's symmetric mirror) so income actually survives.
+  That is the step that turns "starve at ~r400" into "outlast them to r2000" — the first
+  real path to a win.

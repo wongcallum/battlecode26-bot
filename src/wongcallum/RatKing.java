@@ -26,11 +26,9 @@ public class RatKing {
         // crucially, no SOS fires for harmless cooperating enemy foragers.
         if (!rc.isCooperation()) {
             RobotInfo[] enemies = rc.senseNearbyRobots(Const.KING_THREAT_RADIUS_SQUARED, rc.getTeam().opponent());
-            rc.writeSharedArray(Const.SOS_SLOT, enemies.length > 0 ? 1 : 0);
             warAct(rc, cur, enemies);
             return;
         }
-        rc.writeSharedArray(Const.SOS_SLOT, 0);
 
         // peace: ring cats with cat traps, otherwise run the economy spawn
         RobotInfo cat = Combat.nearestCat(cur, rc.senseNearbyRobots(GameConstants.RAT_KING_BUILD_DISTANCE_SQUARED * 2));
@@ -48,40 +46,13 @@ public class RatKing {
     }
 
     private static void warAct(RobotController rc, MapLocation cur, RobotInfo[] enemies) throws GameActionException {
-        // standing minefield first — lay it early while the perimeter is still free
+        // standing minefield first — lay it early while the perimeter is still free.
+        // the ring alone keeps the king safe (enemies die stepping into bite range),
+        // so we spend NO cheese on bodies: our army stays out foraging for income.
         if (Combat.kingLayRatRing(rc, cur)) return;
-        // attackers in melee: bite the weakest to thin them
-        if (enemies.length > 0
-                && Combat.biteBest(rc, cur, enemies, GameConstants.RAT_KING_ATTACK_DISTANCE_SQUARED)) {
-            return;
+        if (enemies.length > 0) {
+            Combat.biteBest(rc, cur, enemies, GameConstants.RAT_KING_ATTACK_DISTANCE_SQUARED);
         }
-        // keep a war-chest; only spend the surplus on bodies (toward the threat)
-        if (rc.getGlobalCheese() > Const.WAR_RESERVE) {
-            Direction toward = enemies.length > 0
-                    ? cur.directionTo(Combat.nearestEnemy(cur, enemies).getLocation())
-                    : Direction.NORTH;
-            spawnToward(rc, cur, toward);
-        }
-    }
-
-    // build a rat near the king, preferring the threat side then fanning out
-    private static boolean spawnToward(RobotController rc, MapLocation center, Direction toward) throws GameActionException {
-        Direction[] pref = { toward, toward.rotateLeft(), toward.rotateRight() };
-        for (Direction d : pref) {
-            MapLocation loc = center.translate(2 * d.dx, 2 * d.dy);
-            if (rc.canBuildRat(loc)) {
-                rc.buildRat(loc);
-                return true;
-            }
-        }
-        for (Direction d : Const.DIRECTIONS) {
-            MapLocation loc = center.translate(2 * d.dx, 2 * d.dy);
-            if (rc.canBuildRat(loc)) {
-                rc.buildRat(loc);
-                return true;
-            }
-        }
-        return false;
     }
 
     // store our location in the shared array so baby rats know where to deliver
