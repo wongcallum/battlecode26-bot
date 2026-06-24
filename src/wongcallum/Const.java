@@ -19,6 +19,12 @@ public class Const {
 
     // the king senses attackers within this radius to bite them while it turtles
     static final int KING_THREAT_RADIUS_SQUARED = 16;
+
+    // stop spawning once this many allied rats already crowd the king (within
+    // PEACE_CROWD_RADIUS): a pileup means foragers aren't dispersing to find cheese,
+    // so more bodies just drain the reserve. tuned to bite only on genuine pileups.
+    static final int PEACE_CROWD_RADIUS_SQUARED = 16;
+    static final int PEACE_POP_CAP = 14;
     // at war the trap ring defends the king alone, so foragers don't rally — they
     // flee an enemy within this radius (then keep foraging) to stay alive and keep
     // delivering income, instead of dying uselessly in the swarm at the king.

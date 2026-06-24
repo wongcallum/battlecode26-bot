@@ -275,3 +275,36 @@ Newest sections appended at the bottom.
   **safe side** (away from the enemy king's symmetric mirror) so income actually survives.
   That is the step that turns "starve at ~r400" into "outlast them to r2000" — the first
   real path to a win.
+
+## V6 finishing pass — harden the defensive build for submission
+
+(Branched here to finalise the defensive bot as a safe fallback submission, separate from
+the strategic "contest the economy" pivot.)
+
+- **Full-suite robustness sweep** (all 43 contest maps, both sides, vs the passive
+  examplefuncsplayer): **zero crashes / exceptions anywhere** — the bot is submission-safe.
+  Score 68/86; every win is by **outlasting** the example bot (it starves ~r1300). The
+  losses cluster on one map family — see below.
+- **Population crowd-cap (the one behaviour change).** Diagnosed a loss-to-passive on
+  `whereisthecheese`: the king was spawning **29 rats that piled up in its own vision the
+  whole game** while global cheese fell at exactly 2/round (pure upkeep, **zero income**).
+  Cause: the cheese mines are **dirt-locked** and our foragers can't path through the dirt
+  to reach them, so they mill around home. We had burned ~2100 cheese on bodies that bring
+  nothing, then starved. Fix: stop spawning once `PEACE_POP_CAP` (14) allied rats already
+  crowd the king (`PEACE_CROWD_RADIUS_SQUARED`). It only bites on genuine pileups (on normal
+  maps foragers disperse, so the count stays low and spawning is unchanged) — confirmed by
+  the war suite being **bit-identical** (the cap never fires before the early backstab) and
+  the peace sweep improving (`whereisthecheese` 0/2 → 1/2, overall 18→19/20 on the first
+  10-map cut). It is also strategically correct: conserving the reserve lets us **survive
+  long enough for a cat to dig a channel into the dirt-locked mines**, after which our
+  preserved foragers can finally collect.
+- **Known weakness, left as-is (low-risk fallback):** dirt-locked-cheese maps, where we
+  can't reach the mines ourselves and depend on a cat/opponent to open access. The real fix
+  is foragers **digging to mines themselves**, but that is Pathfinder surgery (regressed us
+  in V2.3) and edges into the deferred economy pivot. Many of these losses are maps where
+  *both* teams starve early (`streetsofnewyork`, `whatsthecatdoin`, `uneruesansfin`), i.e. a
+  brutal-map problem, not a unique flaw.
+- **Submission packaging fix.** `zipForSubmit` zipped *all* of `src/`, which would have
+  bundled the three gitignored external reference bots (SPAARK/Version41/finalsbot) into the
+  submission — bloat that could fail the contest build. Scoped it to `wongcallum/**` only;
+  `submission.zip` is now the 7 wongcallum source files and nothing else.

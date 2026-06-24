@@ -35,7 +35,11 @@ public class RatKing {
         if (cat != null && Combat.kingHandleCat(rc, cur, cat)) return;
 
         if (rc.getGlobalCheese() <= SPAWN_FLOOR) return;
-        // identical to the pre-V5 economy spawn so peace play is provably unchanged
+        // don't burn the reserve spawning into a pileup: when many rats already crowd
+        // the king (a cheese-scarce or boxed-in map where foragers can't disperse to
+        // find cheese), extra bodies bring no income and just drain us toward
+        // starvation — conserve the reserve and survive on it instead.
+        if (rc.senseNearbyRobots(Const.PEACE_CROWD_RADIUS_SQUARED, rc.getTeam()).length >= Const.PEACE_POP_CAP) return;
         for (Direction d : Const.DIRECTIONS) {
             MapLocation loc = cur.translate(2 * d.dx, 2 * d.dy);
             if (rc.canBuildRat(loc)) {

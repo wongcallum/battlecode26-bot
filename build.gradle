@@ -428,5 +428,9 @@ task zipForSubmit(type: Zip) {
 
   archiveFileName = 'submission.zip'
   destinationDirectory = project.projectDir
-  from sourceSets.main.allSource
+  // ship only our team package: the other src/ dirs are external reference bots
+  // (gitignored) that must not be bundled into the submission.
+  from(sourceSets.main.allSource) {
+    include 'wongcallum/**'
+  }
 }
